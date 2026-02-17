@@ -1,401 +1,428 @@
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Lung Disease Detection - Doctor Review</title>
-    <!-- Bootstrap CSS -->
-    <link
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/css/bootstrap.min.css"
-      rel="stylesheet"
-      integrity="sha384-eOJMYsd53ii+scO/bJGFsiCZc+5NDVN2yr8+0RDqr0Ql0h+rP48ckxlpbzKgwra6"
-      crossorigin="anonymous"
-    />
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
-    <style type="text/css">
-      body {
-        font-family: sans-serif;
-        margin: 0;
-        padding: 0;
-        background-color: #f5f5f5;
-      }
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>LungAI — Prediction Result</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <style>
+    .result-layout {
+      display: grid;
+      grid-template-columns: 420px 1fr;
+      gap: 24px;
+      align-items: start;
+    }
 
-      .main-container {
-        background-color: #ffffff;
-        padding: 30px;
-        border-radius: 15px;
-        margin: 30px auto;
-        max-width: 1400px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-      }
+    @media (max-width: 1024px) {
+      .result-layout { grid-template-columns: 1fr; }
+    }
 
-      .image-container {
-        background-color: #f8f9fa;
-        padding: 20px;
-        border-radius: 10px;
-        text-align: center;
-      }
+    /* X-ray viewer */
+    .xray-viewer {
+      background: #000;
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      border: 1px solid var(--navy-border);
+      position: relative;
+    }
 
-      .image-container img {
-        max-width: 100%;
-        height: auto;
-        max-height: 500px;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-      }
+    .xray-viewer img {
+      width: 100%;
+      display: block;
+      filter: brightness(0.95) contrast(1.05);
+    }
 
-      .prediction-item {
-        margin-bottom: 15px;
-        padding: 15px;
-        border-radius: 8px;
-        background-color: #e9ecef;
-        transition: all 0.3s ease;
-      }
+    .xray-overlay {
+      position: absolute;
+      top: 12px; left: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
 
-      .prediction-item:hover {
-        transform: translateX(5px);
-      }
+    .xray-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 11px;
+      background: rgba(0,0,0,0.7);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 6px;
+      font-size: 0.72rem;
+      font-family: var(--font-mono);
+      color: rgba(255,255,255,0.8);
+      backdrop-filter: blur(4px);
+    }
 
-      .prediction-item.top-prediction {
-        background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
-        color: white;
-        font-weight: bold;
-        box-shadow: 0 4px 6px rgba(23, 162, 184, 0.3);
-      }
+    /* Prediction rows */
+    .pred-list { display: flex; flex-direction: column; gap: 10px; }
 
-      .progress {
-        height: 25px;
-        margin-top: 8px;
-        border-radius: 5px;
-      }
+    .pred-item {
+      padding: 14px 16px;
+      border-radius: var(--radius);
+      border: 1px solid var(--navy-border);
+      background: rgba(255,255,255,0.02);
+      transition: var(--transition);
+    }
 
-      .feedback-section {
-        background-color: #fff9e6;
-        border: 2px solid #ffc107;
-        border-radius: 10px;
-        padding: 25px;
-        margin-top: 30px;
-      }
+    .pred-item:hover { border-color: rgba(255,255,255,0.1); background: rgba(255,255,255,0.04); }
 
-      .feedback-section h4 {
-        color: #ff6b6b;
-        font-weight: bold;
-        margin-bottom: 20px;
-      }
+    .pred-item.top-pred {
+      background: var(--teal-glow);
+      border-color: var(--teal-border);
+    }
 
-      .feedback-buttons {
-        display: flex;
-        gap: 15px;
-        margin-bottom: 20px;
-      }
+    .pred-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 9px;
+    }
 
-      .btn-correct {
-        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-        color: white;
-        border: none;
-        padding: 12px 30px;
-        font-size: 16px;
-        font-weight: bold;
-        border-radius: 8px;
-        transition: all 0.3s ease;
-      }
+    .pred-name {
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: var(--white);
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
 
-      .btn-correct:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
-      }
+    .pred-pct {
+      font-family: var(--font-mono);
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--teal-light);
+    }
 
-      .btn-incorrect {
-        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
-        color: white;
-        border: none;
-        padding: 12px 30px;
-        font-size: 16px;
-        font-weight: bold;
-        border-radius: 8px;
-        transition: all 0.3s ease;
-      }
+    .pred-item.top-pred .pred-pct { color: var(--teal-light); }
 
-      .btn-incorrect:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
-      }
+    /* Doctor feedback */
+    .feedback-panel {
+      border: 1px solid var(--navy-border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      margin-top: 24px;
+    }
 
-      .correction-form {
-        background-color: white;
-        padding: 20px;
-        border-radius: 8px;
-        margin-top: 15px;
-        border: 1px solid #dee2e6;
-      }
+    .feedback-panel-header {
+      padding: 18px 22px;
+      background: rgba(245,158,11,0.06);
+      border-bottom: 1px solid rgba(245,158,11,0.2);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
 
-      .success-message {
-        background-color: #d4edda;
-        border: 1px solid #c3e6cb;
-        color: #155724;
-        padding: 15px;
-        border-radius: 8px;
-        margin-top: 15px;
-        display: none;
-      }
+    .feedback-panel-header h4 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--white);
+    }
 
-      .class-option {
-        cursor: pointer;
-        padding: 12px;
-        margin: 8px 0;
-        border: 2px solid #dee2e6;
-        border-radius: 8px;
-        transition: all 0.3s ease;
-      }
+    .feedback-panel-body { padding: 22px; }
 
-      .class-option:hover {
-        border-color: #17a2b8;
-        background-color: #f8f9fa;
-      }
+    .verdict-row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 0;
+    }
 
-      .class-option.selected {
-        border-color: #28a745;
-        background-color: #d4edda;
-      }
+    /* Correction form */
+    .correction-box {
+      display: none;
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 1px solid var(--navy-border);
+    }
 
-      .confidence-badge {
-        font-size: 14px;
-        padding: 5px 10px;
-        border-radius: 5px;
-        background-color: rgba(255, 255, 255, 0.3);
-      }
+    .correction-box.open { display: block; }
 
-      .doctor-notes {
-        width: 100%;
-        min-height: 100px;
-        padding: 12px;
-        border: 1px solid #ced4da;
-        border-radius: 8px;
-        font-size: 14px;
-      }
+    .class-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin-bottom: 20px;
+    }
 
-      .submit-feedback-btn {
-        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
-        color: white;
-        border: none;
-        padding: 12px 40px;
-        font-size: 16px;
-        font-weight: bold;
-        border-radius: 8px;
-        transition: all 0.3s ease;
-        margin-top: 15px;
-      }
+    @media (max-width: 600px) { .class-grid { grid-template-columns: 1fr; } }
 
-      .submit-feedback-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
-      }
+    .class-opt {
+      padding: 12px 14px;
+      border-radius: var(--radius);
+      border: 1px solid var(--navy-border);
+      background: rgba(255,255,255,0.02);
+      cursor: pointer;
+      transition: var(--transition);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.875rem;
+      color: var(--muted-light);
+    }
 
-      .info-badge {
-        background-color: #e7f3ff;
-        border-left: 4px solid #17a2b8;
-        padding: 15px;
-        margin: 20px 0;
-        border-radius: 5px;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="bg-info text-dark py-4">
-      <div class="container text-center">
-        <h1><i class="fas fa-lungs"></i> Lung Disease Detection - Doctor Review Panel</h1>
+    .class-opt:hover {
+      border-color: var(--teal-border);
+      background: var(--teal-glow);
+      color: var(--white);
+    }
+
+    .class-opt.selected {
+      border-color: var(--teal);
+      background: rgba(13,148,136,0.12);
+      color: var(--white);
+    }
+
+    .class-opt .opt-icon {
+      width: 28px; height: 28px;
+      border-radius: 7px;
+      background: rgba(255,255,255,0.05);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px;
+      flex-shrink: 0;
+    }
+
+    .class-opt.selected .opt-icon {
+      background: var(--teal);
+      color: var(--white);
+    }
+
+    /* Success state */
+    .success-state {
+      display: none;
+      text-align: center;
+      padding: 36px 24px;
+    }
+
+    .success-state.show { display: block; }
+
+    .success-icon {
+      width: 60px; height: 60px;
+      border-radius: 50%;
+      background: rgba(16,185,129,0.15);
+      border: 2px solid rgba(16,185,129,0.4);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 26px;
+      color: var(--green);
+      margin: 0 auto 16px;
+    }
+  </style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <a href="/" class="header-brand" style="text-decoration:none;">
+      <div class="brand-icon">🫁</div>
+      <div>
+        <div class="brand-name">LungAI</div>
+        <div class="brand-sub">Diagnostic System v2.0</div>
+      </div>
+    </a>
+    <nav class="header-nav">
+      <a href="/" class="nav-link"><i class="fas fa-upload"></i> Upload</a>
+      <a href="/dashboard" class="nav-link"><i class="fas fa-chart-line"></i> Dashboard</a>
+      <a href="/training_queue" class="nav-link"><i class="fas fa-layer-group"></i> Training Queue</a>
+    </nav>
+  </div>
+</header>
+
+<div class="page-wrapper">
+
+  <div class="page-title-block animate-fade-up">
+    <h1>Prediction Result</h1>
+    <p>Review the AI analysis and provide your clinical validation below</p>
+  </div>
+
+  <div class="result-layout">
+
+    <!-- Left: X-Ray -->
+    <div class="animate-fade-up delay-1">
+      <div class="xray-viewer">
+        <img src="static/uploads/{{ filename }}" alt="X-Ray"/>
+        <div class="xray-overlay">
+          <span class="xray-tag"><i class="fas fa-hashtag"></i> ID {{ prediction_id }}</span>
+          <span class="xray-tag"><i class="fas fa-file-image"></i> {{ filename }}</span>
+        </div>
+      </div>
+
+      <div class="card mt-4">
+        <div class="card-body" style="padding:18px 20px;">
+          <div style="font-size:0.72rem; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); margin-bottom:12px;">Top Prediction</div>
+          <div style="font-size:1.3rem; font-weight:700; color:var(--white); margin-bottom:4px;">{{ pred_class_name }}</div>
+          <div style="font-family:var(--font-mono); font-size:0.85rem; color:var(--teal-light);">
+            {{ pred_likelihood | round(2) }}% confidence
+          </div>
+        </div>
       </div>
     </div>
 
-    <div class="container">
-      <div class="main-container">
-        <div class="row">
-          <!-- Left: Image Display -->
-          <div class="col-md-5">
-            <div class="image-container">
-              <h4 class="mb-3"><i class="fas fa-x-ray"></i> X-Ray Image</h4>
-              <img src="static/uploads/{{filename}}" class="img-fluid" alt="X-Ray" />
-              <div class="info-badge mt-3">
-                <small><strong>Prediction ID:</strong> #{{prediction_id}}</small>
+    <!-- Right: Predictions + Feedback -->
+    <div class="animate-fade-up delay-2">
+
+      <!-- All predictions -->
+      <div class="card mb-6">
+        <div class="card-header">
+          <i class="fas fa-chart-bar text-teal"></i>
+          <h3>Ensemble Predictions</h3>
+        </div>
+        <div class="card-body">
+          <div class="pred-list">
+            {% for prediction in predictions %}
+            <div class="pred-item {% if loop.first %}top-pred{% endif %}">
+              <div class="pred-meta">
+                <span class="pred-name">
+                  {% if loop.first %}<i class="fas fa-star" style="color:var(--amber); font-size:11px;"></i>{% endif %}
+                  {{ prediction.class_name }}
+                </span>
+                <span class="pred-pct">{{ prediction.confidence | round(2) }}%</span>
+              </div>
+              <div class="progress-wrap">
+                <div class="progress-bar {% if not loop.first %}teal{% endif %}"
+                     style="width:{{ prediction.confidence }}%"></div>
               </div>
             </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Doctor Feedback -->
+      <div class="feedback-panel">
+        <div class="feedback-panel-header">
+          <i class="fas fa-user-md" style="color:var(--amber);"></i>
+          <h4>Doctor Validation</h4>
+          <span class="badge badge-amber" style="margin-left:auto;">Required</span>
+        </div>
+
+        <div class="feedback-panel-body" id="feedbackBody">
+          <p style="font-size:0.875rem; color:var(--muted-light); margin-bottom:18px;">
+            Is the AI prediction clinically accurate?
+          </p>
+
+          <div class="verdict-row">
+            <button class="btn btn-success btn-lg" style="flex:1; justify-content:center;" onclick="markCorrect()">
+              <i class="fas fa-check-circle"></i> Correct
+            </button>
+            <button class="btn btn-danger btn-lg" style="flex:1; justify-content:center;" onclick="openCorrection()">
+              <i class="fas fa-times-circle"></i> Incorrect
+            </button>
           </div>
 
-          <!-- Right: Predictions & Feedback -->
-          <div class="col-md-7">
-            <div class="predictions-container">
-              <h3 class="mb-4"><i class="fas fa-chart-bar"></i> AI Model Predictions</h3>
-              
-              <!-- Loop through all predictions -->
-              {% for prediction in predictions %}
-              <div class="prediction-item {% if loop.first %}top-prediction{% endif %}">
-                <div class="d-flex justify-content-between align-items-center">
-                  <div>
-                    {% if loop.first %}
-                    <i class="fas fa-star"></i>
-                    {% endif %}
-                    <strong>{{ prediction.class_name }}</strong>
-                  </div>
-                  <span class="confidence-badge">{{ prediction.confidence | round(2) }}%</span>
-                </div>
-                <div class="progress">
-                  <div 
-                    class="progress-bar {% if loop.first %}bg-dark{% else %}bg-info{% endif %}" 
-                    role="progressbar" 
-                    style="width: {{ prediction.confidence }}%"
-                    aria-valuenow="{{ prediction.confidence }}" 
-                    aria-valuemin="0" 
-                    aria-valuemax="100">
-                  </div>
-                </div>
+          <!-- Correction form -->
+          <div class="correction-box" id="correctionBox">
+            <div style="font-size:0.8rem; font-weight:600; text-transform:uppercase; letter-spacing:0.07em; color:var(--muted); margin-bottom:12px;">
+              Select correct diagnosis
+            </div>
+
+            <div class="class-grid">
+              {% for label in class_labels %}
+              <div class="class-opt" data-id="{{ loop.index0 }}" data-name="{{ label }}" onclick="selectClass(this)">
+                <div class="opt-icon"><i class="fas fa-circle-notch"></i></div>
+                <span>{{ label }}</span>
               </div>
               {% endfor %}
             </div>
 
-            <!-- Doctor Feedback Section -->
-            <div class="feedback-section" id="feedbackSection">
-              <h4><i class="fas fa-user-md"></i> Doctor Validation Required</h4>
-              <p class="mb-3">Please verify if the AI prediction is correct:</p>
-              
-              <div class="feedback-buttons">
-                <button class="btn-correct" onclick="markAsCorrect()">
-                  <i class="fas fa-check-circle"></i> Prediction is Correct
-                </button>
-                <button class="btn-incorrect" onclick="showCorrectionForm()">
-                  <i class="fas fa-times-circle"></i> Prediction is Incorrect
-                </button>
-              </div>
-
-              <!-- Correction Form (Hidden initially) -->
-              <div class="correction-form" id="correctionForm" style="display: none;">
-                <h5 class="mb-3"><i class="fas fa-edit"></i> Please Select the Correct Diagnosis:</h5>
-                
-                <div id="classOptions">
-                  {% for label in class_labels %}
-                  <div class="class-option" data-class-id="{{ loop.index0 }}" data-class-name="{{ label }}" onclick="selectClass(this)">
-                    <i class="fas fa-circle-notch"></i> <strong>{{ label }}</strong>
-                  </div>
-                  {% endfor %}
-                </div>
-
-                <div class="mt-3">
-                  <label for="doctorNotes"><strong>Additional Notes (Optional):</strong></label>
-                  <textarea class="doctor-notes" id="doctorNotes" placeholder="Enter any observations, reasons for correction, or additional comments..."></textarea>
-                </div>
-
-                <div class="mt-3">
-                  <label for="doctorId"><strong>Doctor ID (Optional):</strong></label>
-                  <input type="text" class="form-control" id="doctorId" placeholder="Enter your doctor ID or name">
-                </div>
-
-                <button class="submit-feedback-btn" onclick="submitCorrection()">
-                  <i class="fas fa-paper-plane"></i> Submit Correction
-                </button>
-              </div>
-
-              <!-- Success Message -->
-              <div class="success-message" id="successMessage">
-                <i class="fas fa-check-circle"></i> <strong>Thank you!</strong> Your feedback has been recorded and will be used to improve the model.
-              </div>
+            <div class="mb-4">
+              <label>Doctor Notes (Optional)</label>
+              <textarea class="form-control" id="doctorNotes" placeholder="Clinical observations, reasons for correction…"></textarea>
             </div>
+
+            <div class="mb-4">
+              <label>Doctor ID (Optional)</label>
+              <input type="text" class="form-control" id="doctorId" placeholder="e.g. DR-001"/>
+            </div>
+
+            <button class="btn btn-primary btn-lg" style="width:100%; justify-content:center;" onclick="submitCorrection()">
+              <i class="fas fa-paper-plane"></i> Submit Correction
+            </button>
           </div>
         </div>
 
-        <!-- Navigation Buttons -->
-        <div class="text-center mt-4">
-          <a href="/" class="btn btn-outline-primary btn-lg">
-            <i class="fas fa-upload"></i> Analyze Another Image
-          </a>
-          <a href="/dashboard" class="btn btn-outline-info btn-lg ms-3">
-            <i class="fas fa-chart-line"></i> View Dashboard
-          </a>
+        <!-- Success -->
+        <div class="success-state" id="successState">
+          <div class="success-icon"><i class="fas fa-check"></i></div>
+          <h3 style="font-size:1.1rem; margin-bottom:8px;">Feedback Recorded</h3>
+          <p style="font-size:0.875rem; color:var(--muted); margin-bottom:24px;" id="successMsg">
+            Thank you — your input improves the model.
+          </p>
+          <div style="display:flex; gap:12px; justify-content:center;">
+            <a href="/" class="btn btn-primary"><i class="fas fa-upload"></i> New Analysis</a>
+            <a href="/dashboard" class="btn btn-ghost"><i class="fas fa-chart-line"></i> Dashboard</a>
+          </div>
         </div>
-      </div>
+
+      </div><!-- /feedback-panel -->
+
     </div>
+  </div><!-- /result-layout -->
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/js/bootstrap.bundle.min.js"
-            integrity="sha384-JEW9xMcG8R+pH31jmWH6WWP0WintQrMb4s7ZOdauHnUtxwoG2vI5DkLtS3qm9Ekf"
-            crossorigin="anonymous"></script>
-    
-    <script>
-      const predictionId = {{ prediction_id }};
-      let selectedClassId = null;
-      let selectedClassName = null;
+</div>
 
-      function markAsCorrect() {
-        if (confirm('Are you sure the AI prediction is correct?')) {
-          submitFeedback(true, null, null);
+<script>
+  const predictionId = {{ prediction_id }};
+  let selectedClassId   = null;
+  let selectedClassName = null;
+
+  function markCorrect() {
+    if (!confirm('Confirm: AI prediction is correct?')) return;
+    submitFeedback(true, null, null);
+  }
+
+  function openCorrection() {
+    document.getElementById('correctionBox').classList.add('open');
+  }
+
+  function selectClass(el) {
+    document.querySelectorAll('.class-opt').forEach(o => {
+      o.classList.remove('selected');
+      o.querySelector('i').className = 'fas fa-circle-notch';
+    });
+    el.classList.add('selected');
+    el.querySelector('i').className = 'fas fa-check';
+    selectedClassId   = parseInt(el.dataset.id);
+    selectedClassName = el.dataset.name;
+  }
+
+  function submitCorrection() {
+    if (selectedClassId === null) {
+      alert('Please select the correct diagnosis.');
+      return;
+    }
+    submitFeedback(false, selectedClassId, selectedClassName,
+      document.getElementById('doctorNotes').value,
+      document.getElementById('doctorId').value || 'anonymous');
+  }
+
+  function submitFeedback(isCorrect, cls, clsName, notes = '', docId = 'anonymous') {
+    fetch('/submit_feedback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prediction_id: predictionId,
+        is_correct: isCorrect,
+        correct_class: cls,
+        correct_class_name: clsName,
+        doctor_notes: notes,
+        doctor_id: docId
+      })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        document.getElementById('feedbackBody').style.display = 'none';
+        const ss = document.getElementById('successState');
+        ss.classList.add('show');
+        if (!isCorrect) {
+          document.getElementById('successMsg').textContent =
+            `Correction recorded — ${clsName} added to training queue.`;
         }
       }
-
-      function showCorrectionForm() {
-        document.getElementById('correctionForm').style.display = 'block';
-      }
-
-      function selectClass(element) {
-        // Remove previous selection
-        document.querySelectorAll('.class-option').forEach(opt => {
-          opt.classList.remove('selected');
-          opt.querySelector('i').className = 'fas fa-circle-notch';
-        });
-        
-        // Mark as selected
-        element.classList.add('selected');
-        element.querySelector('i').className = 'fas fa-check-circle';
-        
-        selectedClassId = parseInt(element.getAttribute('data-class-id'));
-        selectedClassName = element.getAttribute('data-class-name');
-      }
-
-      function submitCorrection() {
-        if (selectedClassId === null) {
-          alert('Please select the correct diagnosis before submitting.');
-          return;
-        }
-
-        const doctorNotes = document.getElementById('doctorNotes').value;
-        const doctorId = document.getElementById('doctorId').value || 'anonymous';
-
-        submitFeedback(false, selectedClassId, selectedClassName, doctorNotes, doctorId);
-      }
-
-      function submitFeedback(isCorrect, correctClass, correctClassName, doctorNotes = '', doctorId = 'anonymous') {
-        const data = {
-          prediction_id: predictionId,
-          is_correct: isCorrect,
-          correct_class: correctClass,
-          correct_class_name: correctClassName,
-          doctor_notes: doctorNotes,
-          doctor_id: doctorId
-        };
-
-        fetch('/submit_feedback', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(data)
-        })
-        .then(response => response.json())
-        .then(data => {
-          if (data.success) {
-            // Hide feedback section
-            document.getElementById('feedbackSection').style.display = 'none';
-            
-            // Show success message
-            const successMsg = document.getElementById('successMessage');
-            successMsg.style.display = 'block';
-            successMsg.innerHTML = `<i class="fas fa-check-circle"></i> <strong>Thank you!</strong> ${data.message}`;
-            
-            // Scroll to success message
-            successMsg.scrollIntoView({ behavior: 'smooth' });
-          }
-        })
-        .catch(error => {
-          console.error('Error:', error);
-          alert('An error occurred while submitting feedback. Please try again.');
-        });
-      }
-    </script>
-  </body>
+    })
+    .catch(() => alert('Error submitting feedback. Please try again.'));
+  }
+</script>
+</body>
 </html>

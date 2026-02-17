@@ -405,7 +405,7 @@ def training_queue():
     queue_items = c.fetchall()
     conn.close()
     
-    return render_template('training_queue.html', queue_items=queue_items)
+    return render_template('training_queue.html', queue_items=queue_items, queue_count=len(queue_items))
 
 @app.route('/export_training_data')
 def export_training_data():
