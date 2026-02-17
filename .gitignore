@@ -1,0 +1,15 @@
+# Ignore PNG files anywhere
+**/*.png
+
+# Ignore JPEG/JPG files anywhere
+**/*.jpg
+**/*.jpeg
+
+# Ignore DICOM files anywhere
+**/*.dcm
+
+**/__pycache__/
+**/*.cache
+/Ignore/*
+/Models/*
+/src/Models/*
