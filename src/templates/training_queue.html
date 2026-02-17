@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Training Queue - Corrected Samples</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f6f9;
+        }
+
+        .queue-header {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 30px 0;
+            margin-bottom: 30px;
+        }
+
+        .queue-item {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .queue-item:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .priority-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 12px;
+        }
+
+        .priority-high {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        .priority-medium {
+            background-color: #ffc107;
+            color: #000;
+        }
+
+        .priority-low {
+            background-color: #28a745;
+            color: white;
+        }
+
+        .image-preview {
+            max-width: 200px;
+            max-height: 200px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .info-section {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+
+        .label-tag {
+            background-color: #e7f3ff;
+            color: #004085;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            display: inline-block;
+            margin: 5px;
+        }
+
+        .prediction-mismatch {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 5px;
+        }
+
+        .stats-bar {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 15px;
+        }
+
+        .stat-number {
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            color: #6c757d;
+            font-size: 14px;
+            text-transform: uppercase;
+        }
+
+        .export-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+        }
+
+        .btn-retrain {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        .btn-retrain:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(245, 87, 108, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="queue-header">
+        <div class="container">
+            <h1><i class="fas fa-layer-group"></i> Training Queue - Corrected Samples</h1>
+            <p class="mb-0">Images with doctor corrections ready for model retraining</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Statistics Bar -->
+        <div class="stats-bar">
+            <div class="row">
+                <div class="col-md-3 stat-item">
+                    <div class="stat-number">{{ queue_items|length }}</div>
+                    <div class="stat-label">Total Samples</div>
+                </div>
+                <div class="col-md-3 stat-item">
+                    <div class="stat-number">
+                        {{ queue_items|selectattr('priority', 'equalto', 2)|list|length }}
+                    </div>
+                    <div class="stat-label">High Priority</div>
+                </div>
+                <div class="col-md-3 stat-item">
+                    <div class="stat-number">
+                        {{ queue_items|map(attribute='true_class_name')|unique|list|length }}
+                    </div>
+                    <div class="stat-label">Classes</div>
+                </div>
+                <div class="col-md-3 stat-item">
+                    <div class="stat-number">
+                        {{ ((queue_items|length / 100.0) * 100)|round|int }}%
+                    </div>
+                    <div class="stat-label">Queue Readiness</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Export Section -->
+        <div class="export-section">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h3><i class="fas fa-download"></i> Export Training Data</h3>
+                    <p class="mb-0">Download all corrected samples as JSON for retraining pipeline</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <button onclick="exportData()" class="btn-retrain">
+                        <i class="fas fa-file-export"></i> Export JSON
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Queue Items -->
+        {% if queue_items|length == 0 %}
+        <div class="alert alert-info text-center" role="alert">
+            <i class="fas fa-info-circle"></i> No samples in training queue. All corrections have been processed!
+        </div>
+        {% else %}
+        <h3 class="mb-4"><i class="fas fa-list"></i> Queue Items ({{ queue_items|length }})</h3>
+        
+        {% for item in queue_items %}
+        <div class="queue-item position-relative">
+            <span class="priority-badge {% if item.priority == 2 %}priority-high{% elif item.priority == 1 %}priority-medium{% else %}priority-low{% endif %}">
+                {% if item.priority == 2 %}HIGH PRIORITY{% elif item.priority == 1 %}MEDIUM{% else %}LOW{% endif %}
+            </span>
+            
+            <div class="row">
+                <!-- Image Preview -->
+                <div class="col-md-3 text-center">
+                    <img src="{{ item.image_path }}" class="image-preview" alt="X-Ray">
+                    <div class="mt-2">
+                        <small class="text-muted">ID: #{{ item.id }}</small>
+                    </div>
+                </div>
+
+                <!-- Details -->
+                <div class="col-md-9">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5><i class="fas fa-tag"></i> Corrected Label</h5>
+                            <div class="label-tag">
+                                <i class="fas fa-check-circle"></i> {{ item.true_class_name }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h5><i class="fas fa-clock"></i> Added to Queue</h5>
+                            <p>{{ item.added_timestamp }}</p>
+                        </div>
+                    </div>
+
+                    <div class="prediction-mismatch mt-3">
+                        <strong><i class="fas fa-exclamation-triangle"></i> Original Misprediction:</strong><br>
+                        AI predicted: <strong>{{ item.predicted_class_name }}</strong> 
+                        ({{ "%.2f"|format(item.confidence) }}% confidence)<br>
+                        Correct diagnosis: <strong>{{ item.true_class_name }}</strong>
+                    </div>
+
+                    {% if item.doctor_notes %}
+                    <div class="info-section mt-3">
+                        <h6><i class="fas fa-sticky-note"></i> Doctor Notes:</h6>
+                        <p class="mb-0">{{ item.doctor_notes }}</p>
+                    </div>
+                    {% endif %}
+
+                    <div class="mt-3">
+                        <small class="text-muted">
+                            <i class="fas fa-folder"></i> Image Path: <code>{{ item.image_path }}</code>
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        <!-- Action Buttons -->
+        <div class="text-center mt-5 mb-5">
+            <a href="/dashboard" class="btn btn-primary btn-lg">
+                <i class="fas fa-chart-line"></i> Back to Dashboard
+            </a>
+            <a href="/" class="btn btn-secondary btn-lg ms-2">
+                <i class="fas fa-home"></i> Home
+            </a>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function exportData() {
+            fetch('/export_training_data')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(`Successfully exported ${data.total_samples} training samples!`);
+                        // Download the file
+                        window.location.href = '/' + data.export_file;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to export training data.');
+                });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,41 @@
+{
+  "model": {
+    "yolo_path": "Models/best_yolo.pt",
+    "resnet_path": "Models/best_resnet.pth",
+    "vit_path": "Models/best_vit.pth",
+    "cnn_path": "Models/best_cnn.h5",
+    "retrained_dir": "Models/retrained"
+  },
+  "database": {
+    "db_path": "doctor_feedback.db",
+    "backup_dir": "backups",
+    "auto_backup": true
+  },
+  "training": {
+    "min_samples_for_retraining": 10,
+    "default_epochs": 10,
+    "default_batch_size": 8,
+    "learning_rate": 0.0001
+  },
+  "ensemble": {
+    "weights": {
+      "yolo": 0.3,
+      "resnet": 0.5,
+      "vit": 0.05,
+      "cnn": 0.15
+    },
+    "num_classes": 5,
+    "class_labels": [
+      "Bacterial Pneumonia",
+      "Corona Virus Disease",
+      "Normal",
+      "Tuberculosis",
+      "Viral Pneumonia"
+    ]
+  },
+  "web": {
+    "host": "0.0.0.0",
+    "port": 5000,
+    "debug": true
+  }
+}
