@@ -13,3 +13,4 @@
 /Ignore/*
 /Models/*
 /src/Models/*
+.vscode/settings.json
